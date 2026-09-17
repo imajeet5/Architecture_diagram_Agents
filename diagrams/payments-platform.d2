@@ -1,0 +1,37 @@
+title: Payments Platform — Architecture
+
+direction: right
+
+client: Client apps {shape: person}
+
+edge: Edge {
+  cdn: CDN {shape: cloud}
+  gateway: API Gateway
+
+  cdn -> gateway: HTTPS
+}
+
+client -> edge.cdn: HTTPS
+
+payments: Payments Platform {
+  api: Payments API
+  router: Router
+  processor: Processor
+  ledger: Ledger
+  db: Postgres {shape: cylinder}
+  bus: Kafka {shape: queue}
+
+  api -> router: route
+  router -> processor: charge
+  processor -> ledger: double-entry
+  ledger -> db: SQL
+  api -> bus: publish
+}
+
+edge.gateway -> payments.api: gRPC
+
+psp: Payment Provider {shape: cloud}
+bank: Bank Rails {shape: cloud}
+
+payments.processor -> psp: REST
+payments.processor -> bank: ACH/SWIFT
