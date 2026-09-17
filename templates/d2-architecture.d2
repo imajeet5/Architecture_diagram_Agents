@@ -6,9 +6,9 @@ user: End user {shape: person}
 
 edge: Edge {
   gateway: API Gateway
-
-  user -> gateway: HTTPS
 }
+
+user -> edge.gateway: HTTPS
 
 core: Core Platform {
   api: API

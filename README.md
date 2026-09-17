@@ -35,7 +35,16 @@ The agent will:
 | `templates/` | Starting skeletons — copy, do not invent structure |
 | `render/` | Generated SVG output, committed so reviewers can preview D2 diagrams |
 | `scripts/render.sh` | Renders all sources into `render/` |
+| `scripts/preview.sh` | Renders, builds `render/index.html` gallery, opens it in Chrome |
 | `.github/workflows/diagrams.yml` | CI: renders every diagram on each PR to catch syntax errors |
+
+## Previewing diagrams locally
+
+```sh
+./scripts/preview.sh                     # render all + open gallery of every SVG in Chrome
+./scripts/preview.sh payments-platform   # render all + open a single diagram
+PREVIEW_NO_OPEN=1 ./scripts/preview.sh   # build the gallery without opening a browser
+```
 
 ## Review workflow
 
