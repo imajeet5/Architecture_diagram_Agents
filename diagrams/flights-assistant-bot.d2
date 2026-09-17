@@ -1,0 +1,32 @@
+title: Flights Assistant — System architecture
+
+direction: right
+
+devs: Developers {shape: person}
+slack: Slack cloud {shape: cloud}
+
+pc: "PrivateCloud — flights-ai-agent" {
+  receiver: "Receiver (Bolt, Socket Mode)"
+  worker: "Worker pool (agent loop)"
+  code_mcp: "flights-code MCP (code search)"
+  mirrors: "Repo mirrors — flights-api, FSA, FDP, MSPA, BCRE" {shape: cylinder}
+  redis: "Redis (job queue + sessions)" {shape: cylinder}
+
+  receiver -> redis: "enqueue job"
+  worker -> redis: "pop job"
+  worker -> code_mcp: "MCP (stdio)"
+  code_mcp -> mirrors: "ripgrep / read"
+}
+
+llm: "LLM API (external)" {shape: cloud}
+grafana: "Grafana MCP — grafana.agodadev.io"
+gitlab: "GitLab MCP — gitlab.agodadev.io"
+superset: "Superset tools (phase 2)"
+
+devs -> slack: "@flights-assistant question"
+slack -> pc.receiver: "events over WSS — bot dials outbound"
+pc.receiver -> slack: "replies via HTTPS Web API"
+pc.worker -> llm: "HTTPS (agent tool loop)"
+pc.worker -> grafana: "MCP over HTTPS"
+pc.worker -> gitlab: "MCP over HTTPS (code + ACL)"
+pc.worker -> superset: "curated queries"

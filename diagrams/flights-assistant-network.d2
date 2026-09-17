@@ -1,0 +1,34 @@
+title: Flights Assistant — Deployment & network (egress-only)
+
+direction: right
+
+internet: "Public internet" {
+  slack: "slack.com (WSS + Web API)" {shape: cloud}
+  llm: "LLM API (external provider)" {shape: cloud}
+}
+
+corp: "Agoda network" {
+  pod: "PrivateCloud pod — flights-ai-agent" {
+    receiver: "Receiver process"
+    worker: "Worker processes"
+    vault: "Vault sidecar"
+    mirrors: "Repo mirrors (PVC)" {shape: cylinder}
+
+    vault -> receiver: "inject bot token (xoxb/xapp)"
+    vault -> worker: "inject LLM API key"
+  }
+  redis: "Redis (managed) — queue + sessions" {shape: cylinder}
+  obs: "Grafana / Kestrel"
+  gitlab: "gitlab.agodadev.io"
+
+  pod.receiver <-> redis: "enqueue / reconnect"
+  pod.worker <-> redis: "pop / complete"
+  pod.worker -> obs: "MCP + own logs"
+  pod.worker -> gitlab: "MCP (code + ACL)"
+}
+
+pod.receiver <-> internet.slack: "WSS :443 — established outbound"
+pod.receiver -> internet.slack: "HTTPS Web API (replies)"
+pod.worker -> internet.llm: "HTTPS :443 (LLM calls)"
+
+egress_note: "Egress-only by design — no public DNS, no WAF, no ingress rules" {shape: text}
