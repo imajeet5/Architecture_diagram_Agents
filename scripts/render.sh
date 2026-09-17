@@ -22,13 +22,21 @@ render_mermaid() {
     [ -e "$src" ] || continue
     slug="$(basename "${src%.md}")"
     out="render/$slug.svg"
-    echo "mermaid $src -> $out"
-    rm -f render/"$slug"-*.svg
-    mmdc -i "$src" -o "$out" --quiet
-    if [ ! -f "$out" ]; then
-      first="$(ls render/"$slug"-*.svg 2>/dev/null | head -n 1 || true)"
-      [ -n "$first" ] && mv "$first" "$out"
+    tmp="$(mktemp -d)"
+
+    # mermaid-cli numbers outputs for markdown input (out-1.svg), so render
+    # into a scratch dir and move the single result to its final name.
+    mmdc -i "$src" -o "$tmp/out.svg" --quiet
+
+    set -- "$tmp"/out*.svg
+    if [ ! -e "$1" ] || [ "$#" -ne 1 ]; then
+      echo "error: $src must contain exactly one mermaid diagram" >&2
+      exit 1
     fi
+
+    echo "mermaid $src -> $out"
+    mv "$1" "$out"
+    rm -rf "$tmp"
     rendered=$((rendered + 1))
   done
 }
