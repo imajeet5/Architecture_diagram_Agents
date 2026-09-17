@@ -34,14 +34,32 @@ The agent will:
 | `diagrams/` | One source file per diagram: `<slug>.md` (Mermaid) or `<slug>.d2` (D2) |
 | `templates/` | Starting skeletons — copy, do not invent structure |
 | `render/` | Generated SVG output, committed so reviewers can preview D2 diagrams |
-| `scripts/render.sh` | Renders all sources into `render/` |
-| `scripts/preview.sh` | Renders, builds `render/index.html` gallery, opens it in Chrome |
+| `scripts/render.sh` | Renders all sources into `render/` (or pass slugs for one-off renders) |
+| `scripts/dashboard.sh` | Live dashboard: renders everything, serves a clickable gallery, re-renders on change |
+| `scripts/preview.sh` | One-shot: renders, builds `render/index.html` gallery, opens it in Chrome |
 | `.github/workflows/diagrams.yml` | CI: renders every diagram on each PR to catch syntax errors |
 
-## Previewing diagrams locally
+## Local dashboard
 
 ```sh
-./scripts/preview.sh                     # render all + open gallery of every SVG in Chrome
+./scripts/dashboard.sh                   # render all + open http://127.0.0.1:4747 in Chrome
+./scripts/dashboard.sh --port 5050       # custom port
+./scripts/dashboard.sh --no-open         # don't launch a browser
+```
+
+- Sidebar lists every diagram (title + slug); click it, or use `j`/`k` / arrow keys to switch
+- Edit a source in `diagrams/` — it re-renders automatically and the open diagram reloads
+- **Light / Dark / System** toggle in the header; D2 SVGs are dual-theme (0 + 200) and follow it
+- Render errors appear inline instead of replacing the diagram
+- `Ctrl-C` stops the server
+
+Override the dark theme for committed renders with `D2_DARK_THEME=201 ./scripts/render.sh`
+(set `D2_DARK_THEME=` empty to disable dark adaptation).
+
+## One-shot preview
+
+```sh
+./scripts/preview.sh                     # render all + open a static gallery in Chrome
 ./scripts/preview.sh payments-platform   # render all + open a single diagram
 PREVIEW_NO_OPEN=1 ./scripts/preview.sh   # build the gallery without opening a browser
 ```

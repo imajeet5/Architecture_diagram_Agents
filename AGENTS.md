@@ -49,7 +49,8 @@ Rules:
 - Label every edge with what flows over it (`HTTPS`, `gRPC`, `SQL`, `publish`).
 - Mermaid: the `mermaid` fence must be the only fence in the file. Put a short `## Context` section above it (2–3 lines: why this diagram exists, what is out of scope) and `## Notes` below it if needed. Use `flowchart LR` unless the flow is shallow or wide.
 - D2: use containers for boundaries, `direction: right` for wide systems, built-in shapes (`person`, `cloud`, `cylinder`, `queue`) when they clarify. Do not reference external icon URLs.
-- Keep styling minimal (default theme); let structure carry the meaning.
+- Keep styling minimal (default theme); let structure carry the meaning. Do not hardcode colors — D2 renders are dual-theme (light 0 + dark 200 via `D2_DARK_THEME`) and adapt automatically.
+- Preview locally without committing churn: `./scripts/dashboard.sh` serves a live dashboard; `./scripts/render.sh <slug>` re-renders a single diagram.
 
 ## Definition of done
 
