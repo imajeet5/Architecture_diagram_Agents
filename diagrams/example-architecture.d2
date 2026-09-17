@@ -1,0 +1,21 @@
+title: Example — Web app architecture
+
+direction: right
+
+user: Browser {shape: person}
+cdn: CDN {shape: cloud}
+
+user -> cdn: HTTPS
+
+app: Application {
+  web: Web Server
+  api: API
+  cache: Cache {shape: cylinder}
+  db: Postgres {shape: cylinder}
+
+  web -> api: internal
+  api -> cache: GET/SET
+  api -> db: SQL
+}
+
+cdn -> app.web: HTTPS

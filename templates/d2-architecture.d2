@@ -1,0 +1,27 @@
+title: <System name> — Architecture
+
+direction: right
+
+user: End user {shape: person}
+
+edge: Edge {
+  gateway: API Gateway
+
+  user -> gateway: HTTPS
+}
+
+core: Core Platform {
+  api: API
+  worker: Worker
+  db: Database {shape: cylinder}
+  cache: Cache {shape: cylinder}
+
+  api -> db: SQL
+  api -> cache: GET/SET
+  api -> worker: publish
+}
+
+edge.gateway -> core.api: gRPC
+
+external: External API {shape: cloud}
+core.worker -> external: REST
