@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
+# Renders diagram sources into render/.
+#   ./scripts/render.sh                 # render everything
+#   ./scripts/render.sh slug [slug...]  # render only the given diagrams
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 mkdir -p render
+
+# D2 SVGs embed both palettes and follow the viewer's prefers-color-scheme.
+# Override with e.g. D2_DARK_THEME=201 (or empty to disable) before invoking.
+export D2_DARK_THEME="${D2_DARK_THEME-200}"
+
+only="$*"
+matches() {
+  [ -z "$only" ] && return 0
+  case " $only " in *" $1 "*) return 0 ;; esac
+  return 1
+}
 
 rendered=0
 missing=""
@@ -10,7 +24,9 @@ missing=""
 render_d2() {
   for src in diagrams/*.d2; do
     [ -e "$src" ] || continue
-    out="render/$(basename "${src%.d2}").svg"
+    slug="$(basename "${src%.d2}")"
+    matches "$slug" || continue
+    out="render/$slug.svg"
     echo "d2      $src -> $out"
     d2 "$src" "$out"
     rendered=$((rendered + 1))
@@ -21,6 +37,7 @@ render_mermaid() {
   for src in diagrams/*.md; do
     [ -e "$src" ] || continue
     slug="$(basename "${src%.md}")"
+    matches "$slug" || continue
     out="render/$slug.svg"
     tmp="$(mktemp -d)"
 
