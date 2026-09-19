@@ -313,7 +313,7 @@ function select(slug) {
   viewer.src = url + '?v=' + (it ? it.mtime : Date.now());
   viewer.alt = slug;
   document.getElementById('caption').textContent = it && it.title ? it.title : slug;
-  document.getElementById('open').href = url;
+  document.getElementById('open').href = '/view/' + slug + '?theme=' + (isDark ? 'dark' : 'light');
   clearError();
   renderList();
 }
@@ -359,6 +359,25 @@ function send(res, code, type, body) {
   res.end(body);
 }
 
+function viewerPage(slug, src, dark) {
+  const bg = dark ? '#0d1117' : '#f6f7f9';
+  const line = dark ? '#30363d' : '#d0d7de';
+  return `<!doctype html>
+<html lang="en" style="color-scheme:${dark ? 'dark' : 'light'}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${slug}</title>
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:${bg}; padding:32px; box-sizing:border-box; }
+  img { max-width:100%; height:auto; border:1px solid ${line}; border-radius:8px; }
+</style>
+</head>
+<body><img src="${src}" alt="${slug}"></body>
+</html>`;
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -379,6 +398,14 @@ const server = http.createServer((req, res) => {
       .then((items) => send(res, 200, 'application/json', JSON.stringify(items)))
       .catch(() => send(res, 500, 'application/json', '{"error":"list failed"}'));
     return;
+  }
+  const v = /^\/view\/([\w.-]+)$/.exec(url.pathname);
+  if (v) {
+    const slug = v[1];
+    const dark = url.searchParams.get('theme') === 'dark';
+    const isMermaid = fs.existsSync(path.join(DIAGRAMS, `${slug}.md`));
+    const src = dark && isMermaid ? `/dark/${slug}.svg` : `/svg/${slug}.svg`;
+    return send(res, 200, 'text/html; charset=utf-8', viewerPage(slug, src, dark));
   }
   const dm = /^\/dark\/([\w.-]+)\.svg$/.exec(url.pathname);
   if (dm) {

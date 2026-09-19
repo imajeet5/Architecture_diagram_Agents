@@ -56,8 +56,9 @@ render_mermaid() {
     # mermaid-cli numbers outputs for markdown input (out-1.svg), so render
     # into a scratch dir and move the single result to its final name.
     if [ -n "$theme" ]; then
-      # Themed variants render transparent so the viewer's background shows through.
-      mmdc -i "$src" -o "$tmp/out.svg" -t "$theme" -b transparent --quiet
+      # Bake the dashboard's dark background so the SVG also reads well when
+      # opened directly in a browser tab.
+      mmdc -i "$src" -o "$tmp/out.svg" -t "$theme" -b '#0d1117' --quiet
     else
       mmdc -i "$src" -o "$tmp/out.svg" --quiet
     fi

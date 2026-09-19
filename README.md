@@ -51,6 +51,7 @@ The agent will:
 - Edit a source in `diagrams/` — it re-renders automatically and the open diagram reloads
 - **Light / Dark / System** toggle in the header; D2 SVGs are dual-theme (0 + 200) and follow it
 - Mermaid diagrams get an on-demand dark variant in `render/.dark/` (gitignored, preview-only)
+- **Open in new tab** gives a themed full-page view (`/view/<slug>`) that matches the current mode
 - Render errors appear inline instead of replacing the diagram
 - `Ctrl-C` stops the server
 
