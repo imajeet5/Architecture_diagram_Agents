@@ -369,9 +369,11 @@ function viewerPage(slug, src, dark) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${slug}</title>
 <style>
-  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
-         background:${bg}; padding:32px; box-sizing:border-box; }
-  img { max-width:100%; height:auto; border:1px solid ${line}; border-radius:8px; }
+  html { height:100%; }
+  body { margin:0; min-height:100%; display:flex; box-sizing:border-box; padding:32px;
+         background:${bg}; }
+  img { margin:auto; max-width:100%; max-height:calc(100vh - 64px);
+        width:auto; height:auto; border:1px solid ${line}; border-radius:8px; }
 </style>
 </head>
 <body><img src="${src}" alt="${slug}"></body>
