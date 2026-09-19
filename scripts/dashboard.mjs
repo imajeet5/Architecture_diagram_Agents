@@ -89,11 +89,51 @@ async function renderSlug(slug) {
     });
     log(`rendered  ${slug}`);
     broadcast({ type: 'rendered', slug, ok: true });
+    refreshDarkTwin(slug);
   } catch (err) {
     const error = String(err.stderr || err.message || err).trim();
     log(`FAILED    ${slug}\n${error}`);
     broadcast({ type: 'rendered', slug, ok: false, error });
   }
+}
+
+// Mermaid SVGs bake in a single theme, so dark mode needs a separately
+// rendered variant. D2 embeds both palettes and needs nothing here.
+const DARK_DIR = path.join(RENDER, '.dark');
+
+async function ensureDarkTwin(slug) {
+  const srcStat = await fsp.stat(path.join(DIAGRAMS, `${slug}.md`)).catch(() => null);
+  if (!srcStat) return null;
+
+  const out = path.join(DARK_DIR, `${slug}.svg`);
+  const outStat = await fsp.stat(out).catch(() => null);
+  if (outStat && outStat.mtimeMs >= srcStat.mtimeMs) return out;
+
+  await execFileP(path.join(ROOT, 'scripts', 'render.sh'), ['--dark', slug], {
+    cwd: ROOT,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  return fs.existsSync(out) ? out : null;
+}
+
+function refreshDarkTwin(slug) {
+  const out = path.join(DARK_DIR, `${slug}.svg`);
+  if (!fs.existsSync(out)) return;
+  execFileP(path.join(ROOT, 'scripts', 'render.sh'), ['--dark', slug], {
+    cwd: ROOT,
+    maxBuffer: 8 * 1024 * 1024,
+  })
+    .then(() => log(`dark      ${slug}`))
+    .catch(() => {});
+}
+
+async function warmDarkTwins() {
+  const files = await fsp.readdir(DIAGRAMS).catch(() => []);
+  const mds = files.filter((f) => f.endsWith('.md'));
+  if (!mds.length) return;
+  log(`pre-rendering dark variants for ${mds.length} mermaid diagram(s)...`);
+  for (const f of mds) await ensureDarkTwin(f.replace(/\.md$/, '')).catch(() => {});
+  log('dark variants ready');
 }
 
 // ------------------------------------------------------------------ watch
@@ -131,11 +171,11 @@ const PAGE = `<!doctype html>
 <style>
   :root {
     --bg:#f6f7f9; --panel:#fff; --line:#d0d7de; --fg:#24292f; --muted:#57606a;
-    --chip:#eaeef2; --accent:#0969da; --err:#cf222e;
+    --chip:#eaeef2; --accent:#0969da; --err:#cf222e; --viewer-bg:#fff;
   }
   :root[data-mode="dark"] {
     --bg:#0d1117; --panel:#161b22; --line:#30363d; --fg:#e6edf3; --muted:#8b949e;
-    --chip:#21262d; --accent:#58a6ff; --err:#f85149;
+    --chip:#21262d; --accent:#58a6ff; --err:#f85149; --viewer-bg:#0d1117;
   }
   * { box-sizing: border-box; }
   body { margin:0; height:100vh; display:flex; flex-direction:column;
@@ -171,7 +211,7 @@ const PAGE = `<!doctype html>
   #status { color:var(--muted); font-size:12px; }
   #open { margin-left:auto; color:var(--accent); text-decoration:none; font-size:12px; }
   #stage { flex:1; overflow:auto; padding:24px; }
-  #stage img { display:block; max-width:100%; height:auto; background:#fff;
+  #stage img { display:block; max-width:100%; height:auto; background:var(--viewer-bg);
                border:1px solid var(--line); border-radius:8px; }
   #error { margin:16px; padding:12px 16px; border:1px solid var(--err); border-radius:8px;
            background:color-mix(in srgb, var(--err) 8%, transparent); overflow:auto; }
@@ -207,16 +247,19 @@ const params = new URLSearchParams(location.search);
 let mode = params.get('theme') || localStorage.getItem(KEY) || 'system';
 let items = [];
 let selected = null;
+let isDark = false;
 
 function applyMode() {
   const prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
   const dark = mode === 'dark' || (mode === 'system' && prefersDark);
+  isDark = dark;
   document.documentElement.dataset.mode = dark ? 'dark' : 'light';
   if (mode === 'system') document.documentElement.style.removeProperty('color-scheme');
   else document.documentElement.style.colorScheme = mode;
   for (const b of document.querySelectorAll('[data-theme]'))
     b.classList.toggle('active', b.dataset.theme === mode);
   localStorage.setItem(KEY, mode);
+  if (selected && items.some((i) => i.slug === selected && i.format === 'mermaid')) select(selected);
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyMode);
 for (const b of document.querySelectorAll('[data-theme]'))
@@ -257,13 +300,20 @@ function renderList() {
   }
 }
 
+function viewUrl(slug) {
+  const it = items.find((i) => i.slug === slug);
+  const darkVariant = isDark && it && it.format === 'mermaid';
+  return '/' + (darkVariant ? 'dark' : 'svg') + '/' + slug + '.svg';
+}
+
 function select(slug) {
   selected = slug;
   const it = items.find((i) => i.slug === slug);
-  viewer.src = '/svg/' + slug + '.svg?v=' + (it ? it.mtime : Date.now());
+  const url = viewUrl(slug);
+  viewer.src = url + '?v=' + (it ? it.mtime : Date.now());
   viewer.alt = slug;
   document.getElementById('caption').textContent = it && it.title ? it.title : slug;
-  document.getElementById('open').href = '/svg/' + slug + '.svg';
+  document.getElementById('open').href = url;
   clearError();
   renderList();
 }
@@ -330,6 +380,19 @@ const server = http.createServer((req, res) => {
       .catch(() => send(res, 500, 'application/json', '{"error":"list failed"}'));
     return;
   }
+  const dm = /^\/dark\/([\w.-]+)\.svg$/.exec(url.pathname);
+  if (dm) {
+    ensureDarkTwin(dm[1])
+      .then((file) => {
+        if (!file) return send(res, 404, 'text/plain', 'no dark variant for this diagram');
+        fs.readFile(file, (err, data) => {
+          if (err) return send(res, 404, 'text/plain', 'not rendered yet');
+          send(res, 200, 'image/svg+xml', data);
+        });
+      })
+      .catch((err) => send(res, 500, 'text/plain', String(err.stderr || err.message).trim()));
+    return;
+  }
   const m = /^\/svg\/([\w.-]+\.svg)$/.exec(url.pathname);
   if (m) {
     fs.readFile(path.join(RENDER, m[1]), (err, data) => {
@@ -364,6 +427,7 @@ server.listen(PORT, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${PORT}/`;
   log(`dashboard  ${url}  (ctrl-c to stop)`);
   if (OPEN) openBrowser(url);
+  warmDarkTwins();
 });
 
 process.on('SIGINT', () => {

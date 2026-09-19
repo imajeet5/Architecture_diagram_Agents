@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Renders diagram sources into render/.
-#   ./scripts/render.sh                 # render everything
-#   ./scripts/render.sh slug [slug...]  # render only the given diagrams
+#   ./scripts/render.sh                  # render everything
+#   ./scripts/render.sh slug [slug...]   # render only the given diagrams
+#   ./scripts/render.sh --dark [slug...] # dark mermaid twins into render/.dark/
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 mkdir -p render
+
+dark=0
+if [ "${1-}" = "--dark" ]; then
+  dark=1
+  shift
+fi
 
 # D2 SVGs embed both palettes and follow the viewer's prefers-color-scheme.
 # Override with e.g. D2_DARK_THEME=201 (or empty to disable) before invoking.
@@ -34,16 +41,26 @@ render_d2() {
 }
 
 render_mermaid() {
+  # $1 = output dir, $2 = mermaid theme (optional, "" for the default light theme)
+  outdir="$1"
+  theme="${2-}"
+  mkdir -p "$outdir"
+
   for src in diagrams/*.md; do
     [ -e "$src" ] || continue
     slug="$(basename "${src%.md}")"
     matches "$slug" || continue
-    out="render/$slug.svg"
+    out="$outdir/$slug.svg"
     tmp="$(mktemp -d)"
 
     # mermaid-cli numbers outputs for markdown input (out-1.svg), so render
     # into a scratch dir and move the single result to its final name.
-    mmdc -i "$src" -o "$tmp/out.svg" --quiet
+    if [ -n "$theme" ]; then
+      # Themed variants render transparent so the viewer's background shows through.
+      mmdc -i "$src" -o "$tmp/out.svg" -t "$theme" -b transparent --quiet
+    else
+      mmdc -i "$src" -o "$tmp/out.svg" --quiet
+    fi
 
     set -- "$tmp"/out*.svg
     if [ ! -e "$1" ] || [ "$#" -ne 1 ]; then
@@ -58,16 +75,25 @@ render_mermaid() {
   done
 }
 
-if command -v d2 >/dev/null 2>&1; then
-  render_d2
+if [ "$dark" -eq 1 ]; then
+  # Mermaid needs a separately rendered dark variant; D2 is already dual-theme.
+  if command -v mmdc >/dev/null 2>&1; then
+    render_mermaid render/.dark dark
+  else
+    missing="$missing mmdc"
+  fi
 else
-  missing="$missing d2"
-fi
+  if command -v d2 >/dev/null 2>&1; then
+    render_d2
+  else
+    missing="$missing d2"
+  fi
 
-if command -v mmdc >/dev/null 2>&1; then
-  render_mermaid
-else
-  missing="$missing mmdc"
+  if command -v mmdc >/dev/null 2>&1; then
+    render_mermaid render
+  else
+    missing="$missing mmdc"
+  fi
 fi
 
 if [ -n "$missing" ]; then
