@@ -14,25 +14,6 @@ Read this file fully before creating or editing anything.
 - Mermaid diagrams live in `.md` files and are rendered natively by GitHub in the PR diff.
 - Run `./scripts/render.sh` before committing; it must exit 0.
 
-## Workflow
-
-```sh
-git checkout main
-git pull --ff-only                        # if a remote exists
-git checkout -b <type>/<slug>             # e.g. arch/payments-retry-flow
-
-# create diagrams/<slug>.md (Mermaid) or diagrams/<slug>.d2 (D2)
-./scripts/render.sh
-
-git add diagrams render
-git commit -m "diagram(<slug>): <what it shows>"
-# push the branch and open a PR into main
-```
-
-If no remote is configured, commit on the branch and tell the user to push.
-
-- `<type>` prefix: `arch/`, `flow/`, `seq/`, `er/`, `infra/`, `sketch/`
-- `<slug>`: lowercase kebab-case, 2–5 words, must match the file name in `diagrams/`
 
 ## Choosing a format
 
